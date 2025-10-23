@@ -43,11 +43,12 @@ struct ContentView: View {
     private var backgroundGradient: some View {
         LinearGradient(
             colors: currentColorScheme == .dark
-                ? [Color(hex: "0A0E27"), Color(hex: "1A1F3A"), Color(hex: "2A2F4A")]
+                ? [Color(hex: "0D1117"), Color(hex: "161B22"), Color(hex: "1F2937"), Color(hex: "2D3748")]
                 : [Color(hex: "E8F4F8"), Color(hex: "D4E9F2"), Color(hex: "C0DEF0")],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+        .animation(.easeInOut(duration: 0.8), value: currentColorScheme)
     }
 }
 
@@ -74,23 +75,29 @@ struct CalculatorView: View {
     #endif
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Top bar with theme and premium buttons
-            topBar
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Top bar with theme and premium buttons
+                topBar
+                    .padding(.horizontal, 20)
+                    .padding(.top, max(geometry.safeAreaInsets.top, 8) + 8)
 
-            Spacer()
+                Spacer()
 
-            // Display with liquid glass effect
-            displayView
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+                // Display with liquid glass effect
+                displayView
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.95).combined(with: .opacity),
+                        removal: .scale(scale: 1.05).combined(with: .opacity)
+                    ))
 
-            // Button grid
-            buttonGrid
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                // Button grid
+                buttonGrid
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, max(geometry.safeAreaInsets.bottom, 20) + 8)
+            }
         }
     }
 
@@ -151,37 +158,57 @@ struct CalculatorView: View {
     private var themeToggleButton: some View {
         Button {
             // Ciclar entre: system (0) -> light (1) -> dark (2) -> system (0)
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            withAnimation(.interpolatingSpring(stiffness: 250, damping: 20)) {
                 userPreferredColorScheme = (userPreferredColorScheme + 1) % 3
             }
 
             // Haptic feedback
-            let impact = UIImpactFeedbackGenerator(style: .light)
+            let impact = UIImpactFeedbackGenerator(style: .medium)
             impact.impactOccurred()
         } label: {
-            Image(systemName: themeIconName)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1A1F3A"))
-                .frame(width: 36, height: 36)
-                .background {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .overlay {
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(colorScheme == .dark ? 0.2 : 0.5),
-                                            Color.white.opacity(colorScheme == .dark ? 0.05 : 0.2)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        }
-                        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 6, x: 0, y: 3)
-                }
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+
+                // Subtle inner glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.08 : 0.3),
+                                Color.clear
+                            ],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: 20
+                        )
+                    )
+                    .blendMode(.overlay)
+
+                // Border
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.3 : 0.6),
+                                Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.2
+                    )
+
+                // Icon with transition
+                Image(systemName: themeIconName)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1A1F3A"))
+                    .transition(.scale.combined(with: .opacity))
+                    .id(themeIconName) // Force view recreation for smooth transition
+            }
+            .frame(width: 36, height: 36)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.4 : 0.08), radius: 8, x: 0, y: 4)
+            .shadow(color: colorScheme == .dark ? Color.white.opacity(0.05) : Color.white.opacity(0.3), radius: 0.5, x: 0, y: -0.5)
         }
         .buttonStyle(.plain)
     }
@@ -224,17 +251,22 @@ struct CalculatorView: View {
             if !viewModel.operationText.isEmpty {
                 Text(viewModel.operationText)
                     .font(.system(size: 24, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.6) : Color.primary.opacity(0.6))
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .top).combined(with: .opacity).combined(with: .scale(scale: 0.9)),
+                            removal: .move(edge: .top).combined(with: .opacity).combined(with: .scale(scale: 1.1))
+                        )
+                    )
             }
 
             // Main display
             Text(viewModel.displayText)
                 .font(.system(size: 72, weight: .thin, design: .rounded))
                 .fontDesign(.rounded)
-                .foregroundStyle(.primary)
+                .foregroundStyle(colorScheme == .dark ? Color.white : Color.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.3)
                 .contentTransition(.numericText(value: Double(viewModel.displayText.filter { $0.isNumber || $0 == "." }) ?? 0))
@@ -245,26 +277,43 @@ struct CalculatorView: View {
         .background {
             liquidGlassBackground
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.displayText)
+        .animation(.interpolatingSpring(stiffness: 200, damping: 18), value: viewModel.displayText)
     }
 
     private var liquidGlassBackground: some View {
-        RoundedRectangle(cornerRadius: 32, style: .continuous)
-            .fill(.ultraThinMaterial)
-            .overlay {
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: colorScheme == .dark
-                                ? [Color.white.opacity(0.3), Color.white.opacity(0.1)]
-                                : [Color.white.opacity(0.8), Color.white.opacity(0.4)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.5
+        ZStack {
+            // Base glass effect
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(.ultraThinMaterial)
+
+            // Inner glow
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: colorScheme == .dark
+                            ? [Color.white.opacity(0.08), Color.clear]
+                            : [Color.white.opacity(0.6), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .center
                     )
-            }
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.1), radius: 20, x: 0, y: 10)
+                )
+                .blendMode(colorScheme == .dark ? .plusLighter : .overlay)
+
+            // Border with gradient
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: colorScheme == .dark
+                            ? [Color.white.opacity(0.4), Color.white.opacity(0.1), Color.white.opacity(0.05)]
+                            : [Color.white.opacity(0.9), Color.white.opacity(0.6), Color.white.opacity(0.3)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        }
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.6 : 0.1), radius: 24, x: 0, y: 12)
+        .shadow(color: colorScheme == .dark ? Color.white.opacity(0.05) : Color.white.opacity(0.3), radius: 1, x: 0, y: -1)
     }
 
     private var buttonGrid: some View {
@@ -289,19 +338,21 @@ struct CalculatorView: View {
         let impact = UIImpactFeedbackGenerator(style: .light)
         impact.impactOccurred()
 
-        // Scale animation
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-            buttonScale[button.rawValue] = 0.9
+        // Smooth press animation (iOS 26 style)
+        withAnimation(.interpolatingSpring(stiffness: 300, damping: 15)) {
+            buttonScale[button.rawValue] = 0.92
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            withAnimation(.interpolatingSpring(stiffness: 200, damping: 12)) {
                 buttonScale[button.rawValue] = 1.0
             }
         }
 
-        // Process button action
-        viewModel.buttonTapped(button)
+        // Process button action with slight delay for feel
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+            viewModel.buttonTapped(button)
+        }
     }
 }
 
@@ -326,23 +377,42 @@ struct CalculatorButtonView: View {
     }
 
     private var buttonBackground: some View {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .fill(button.backgroundColor(for: colorScheme))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(colorScheme == .dark ? 0.2 : 0.5),
-                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.2)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
+        ZStack {
+            // Base button with glass effect
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(button.backgroundColor(for: colorScheme))
+
+            // Inner highlight for liquid glass effect
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .center
                     )
-            }
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                )
+                .blendMode(.overlay)
+
+            // Border gradient
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.25 : 0.6),
+                            Color.white.opacity(colorScheme == .dark ? 0.08 : 0.3),
+                            Color.white.opacity(colorScheme == .dark ? 0.05 : 0.2)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.2
+                )
+        }
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.12), radius: 10, x: 0, y: 5)
+        .shadow(color: colorScheme == .dark ? Color.white.opacity(0.03) : Color.white.opacity(0.4), radius: 0.5, x: 0, y: -0.5)
     }
 }
 

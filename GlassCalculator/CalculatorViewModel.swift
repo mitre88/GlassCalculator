@@ -23,7 +23,7 @@ enum CalculatorButton: String, Hashable {
             return AnyShapeStyle(
                 LinearGradient(
                     colors: colorScheme == .dark
-                        ? [Color(hex: "FF9F0A"), Color(hex: "FF8C00")]
+                        ? [Color(hex: "FF9F0A"), Color(hex: "FF7A00")]
                         : [Color(hex: "FF9F0A"), Color(hex: "FF8C00")],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -32,13 +32,13 @@ enum CalculatorButton: String, Hashable {
         case .clear, .negate, .percent:
             return AnyShapeStyle(
                 colorScheme == .dark
-                    ? Color(hex: "3A3A3C").opacity(0.8)
+                    ? Color(hex: "4A4A4E").opacity(0.9)
                     : Color(hex: "E5E5E5").opacity(0.9)
             )
         default:
             return AnyShapeStyle(
                 colorScheme == .dark
-                    ? Color(hex: "505050").opacity(0.7)
+                    ? Color(hex: "5A5A5E").opacity(0.85)
                     : Color.white.opacity(0.7)
             )
         }
