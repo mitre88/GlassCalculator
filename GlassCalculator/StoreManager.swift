@@ -113,22 +113,57 @@ class StoreManager: ObservableObject {
 
     // MARK: - Restore Purchases
     func restorePurchases() async {
+        purchaseState = .purchasing
+        errorMessage = nil
+
         do {
-            try await AppStore.sync()
+            // Timeout después de 10 segundos para evitar que se quede colgado
+            try await withTimeout(seconds: 10) {
+                try await AppStore.sync()
+            }
+
             await updatePurchaseStatus()
 
             if isPremiumUnlocked {
                 purchaseState = .restored
+                errorMessage = nil
 
                 // Haptic feedback
                 let notification = UINotificationFeedbackGenerator()
                 notification.notificationOccurred(.success)
             } else {
-                errorMessage = "No previous purchases found."
+                purchaseState = .idle
+                errorMessage = "No se encontraron compras previas."
             }
         } catch {
-            errorMessage = "Restore failed: \(error.localizedDescription)"
+            purchaseState = .failed
+            if error is TimeoutError {
+                errorMessage = "La operación tardó demasiado. Verifica tu conexión."
+            } else {
+                errorMessage = "Error al restaurar: \(error.localizedDescription)"
+            }
             print("Restore failed: \(error)")
+        }
+    }
+
+    // Helper para timeout
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            // Task principal
+            group.addTask {
+                try await operation()
+            }
+
+            // Task de timeout
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw TimeoutError()
+            }
+
+            // Retornar el primero que complete
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
         }
     }
 
@@ -177,3 +212,5 @@ class StoreManager: ObservableObject {
 enum StoreError: Error {
     case failedVerification
 }
+
+struct TimeoutError: Error {}

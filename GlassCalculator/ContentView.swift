@@ -11,6 +11,7 @@ struct ContentView: View {
     @EnvironmentObject var calculatorViewModel: CalculatorViewModel
     @EnvironmentObject var storeManager: StoreManager
     @Environment(\.colorScheme) var colorScheme
+    @State private var showPremiumSheet = false
 
     var body: some View {
         ZStack {
@@ -18,21 +19,13 @@ struct ContentView: View {
             backgroundGradient
                 .ignoresSafeArea()
 
-            if storeManager.isPremiumUnlocked {
-                CalculatorView()
-                    .transition(.asymmetric(
-                        insertion: .scale.combined(with: .opacity),
-                        removal: .scale.combined(with: .opacity)
-                    ))
-            } else {
-                PremiumPurchaseView()
-                    .transition(.asymmetric(
-                        insertion: .scale.combined(with: .opacity),
-                        removal: .scale.combined(with: .opacity)
-                    ))
-            }
+            // Calculator siempre visible
+            CalculatorView(showPremiumSheet: $showPremiumSheet)
         }
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: storeManager.isPremiumUnlocked)
+        .sheet(isPresented: $showPremiumSheet) {
+            PremiumPurchaseSheet()
+                .environmentObject(storeManager)
+        }
     }
 
     private var backgroundGradient: some View {
@@ -48,8 +41,10 @@ struct ContentView: View {
 
 struct CalculatorView: View {
     @EnvironmentObject var viewModel: CalculatorViewModel
+    @EnvironmentObject var storeManager: StoreManager
     @Environment(\.colorScheme) var colorScheme
     @State private var buttonScale: [String: CGFloat] = [:]
+    @Binding var showPremiumSheet: Bool
 
     private let buttonLayout: [[CalculatorButton]] = [
         [.clear, .negate, .percent, .divide],
@@ -67,10 +62,10 @@ struct CalculatorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Development mode indicator
-            #if DEBUG
-            developmentBanner
-            #endif
+            // Top bar with premium button
+            topBar
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
 
             Spacer()
 
@@ -85,6 +80,57 @@ struct CalculatorView: View {
                 .padding(.bottom, 40)
         }
         .statusBar(hidden: false)
+    }
+
+    private var topBar: some View {
+        HStack {
+            // Development mode indicator
+            #if DEBUG
+            developmentBanner
+            #endif
+
+            Spacer()
+
+            // Premium button (solo mostrar si no está desbloqueado)
+            if !storeManager.isPremiumUnlocked {
+                Button {
+                    showPremiumSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 12))
+                        Text("Premium")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(hex: "FF9F0A"), Color(hex: "FF8C00")],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background {
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .overlay {
+                                Capsule()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "FF9F0A").opacity(0.5), Color(hex: "FF8C00").opacity(0.3)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        ),
+                                        lineWidth: 1.5
+                                    )
+                            }
+                            .shadow(color: Color(hex: "FF9F0A").opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     #if DEBUG
