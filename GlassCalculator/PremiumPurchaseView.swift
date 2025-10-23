@@ -388,6 +388,11 @@ struct PremiumPurchaseSheet: View {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
                 isAnimating = true
             }
+
+            // Cargar productos si no están cargados
+            Task {
+                await storeManager.loadProducts()
+            }
         }
     }
 
@@ -488,8 +493,63 @@ struct PremiumPurchaseSheet: View {
                 .disabled(storeManager.purchaseState == .purchasing)
                 .buttonStyle(.plain)
             } else {
-                ProgressView()
-                    .frame(height: 56)
+                // Modo testing o cargando
+                VStack(spacing: 12) {
+                    #if DEBUG
+                    // En modo desarrollo, mostrar botón de prueba
+                    Button {
+                        // Simular compra exitosa
+                        storeManager.errorMessage = nil
+                        withAnimation {
+                            storeManager.purchaseState = .success
+                        }
+
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            dismiss()
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.title3)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Simular Compra (Dev)")
+                                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                Text("$2.99")
+                                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                                    .opacity(0.9)
+                            }
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "FF9F0A"), Color(hex: "FF8C00")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: Color(hex: "FF9F0A").opacity(0.4), radius: 16, x: 0, y: 8)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Text("ℹ️ Modo desarrollo - Compra simulada")
+                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                    #else
+                    ProgressView()
+                        .frame(height: 56)
+
+                    Text("Cargando productos...")
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    #endif
+                }
             }
 
             if let error = storeManager.errorMessage {

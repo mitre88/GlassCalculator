@@ -75,30 +75,29 @@ struct CalculatorView: View {
     #endif
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Top bar with theme and premium buttons
-                topBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, max(geometry.safeAreaInsets.top, 8) + 8)
+        VStack(spacing: 0) {
+            // Top bar with theme and premium buttons
+            topBar
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
 
-                Spacer()
+            Spacer(minLength: 20)
 
-                // Display with liquid glass effect
-                displayView
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.95).combined(with: .opacity),
-                        removal: .scale(scale: 1.05).combined(with: .opacity)
-                    ))
+            // Display with liquid glass effect
+            displayView
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.95).combined(with: .opacity),
+                    removal: .scale(scale: 1.05).combined(with: .opacity)
+                ))
 
-                // Button grid
-                buttonGrid
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, max(geometry.safeAreaInsets.bottom, 20) + 8)
-            }
+            // Button grid
+            buttonGrid
+                .padding(.horizontal, 20)
+                .padding(.bottom, 30)
         }
+        .frame(maxHeight: .infinity)
     }
 
     private var topBar: some View {
@@ -113,7 +112,47 @@ struct CalculatorView: View {
             // Theme toggle button
             themeToggleButton
 
-            // Premium button (solo mostrar si no está desbloqueado)
+            // Premium/Settings button
+            #if DEBUG
+            // En modo desarrollo, mostrar como botón de settings para testing
+            Button {
+                showPremiumSheet = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: storeManager.isPremiumUnlocked ? "gearshape.fill" : "crown.fill")
+                        .font(.system(size: 12))
+                    Text(storeManager.isPremiumUnlocked ? "Test" : "Premium")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color(hex: "FF9F0A"), Color(hex: "FF8C00")],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background {
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            Capsule()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [Color(hex: "FF9F0A").opacity(0.5), Color(hex: "FF8C00").opacity(0.3)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ),
+                                    lineWidth: 1.5
+                                )
+                        }
+                        .shadow(color: Color(hex: "FF9F0A").opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+            }
+            .buttonStyle(.plain)
+            #else
+            // En producción, solo mostrar si no está desbloqueado
             if !storeManager.isPremiumUnlocked {
                 Button {
                     showPremiumSheet = true
@@ -152,6 +191,7 @@ struct CalculatorView: View {
                 }
                 .buttonStyle(.plain)
             }
+            #endif
         }
     }
 
