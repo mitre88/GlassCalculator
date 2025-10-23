@@ -10,9 +10,18 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var calculatorViewModel: CalculatorViewModel
     @EnvironmentObject var storeManager: StoreManager
-    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.colorScheme) var systemColorScheme
     @State private var showPremiumSheet = false
     @AppStorage("userPreferredColorScheme") private var userPreferredColorScheme: Int = 0 // 0 = system, 1 = light, 2 = dark
+
+    // Computed property para el color scheme actual
+    private var currentColorScheme: ColorScheme {
+        switch userPreferredColorScheme {
+        case 1: return .light
+        case 2: return .dark
+        default: return systemColorScheme
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -23,16 +32,17 @@ struct ContentView: View {
             // Calculator siempre visible
             CalculatorView(showPremiumSheet: $showPremiumSheet, userPreferredColorScheme: $userPreferredColorScheme)
         }
+        .preferredColorScheme(userPreferredColorScheme == 0 ? nil : (userPreferredColorScheme == 1 ? .light : .dark))
         .sheet(isPresented: $showPremiumSheet) {
             PremiumPurchaseSheet()
                 .environmentObject(storeManager)
+                .preferredColorScheme(userPreferredColorScheme == 0 ? nil : (userPreferredColorScheme == 1 ? .light : .dark))
         }
-        .preferredColorScheme(userPreferredColorScheme == 0 ? nil : (userPreferredColorScheme == 1 ? .light : .dark))
     }
 
     private var backgroundGradient: some View {
         LinearGradient(
-            colors: colorScheme == .dark
+            colors: currentColorScheme == .dark
                 ? [Color(hex: "0A0E27"), Color(hex: "1A1F3A"), Color(hex: "2A2F4A")]
                 : [Color(hex: "E8F4F8"), Color(hex: "D4E9F2"), Color(hex: "C0DEF0")],
             startPoint: .topLeading,
@@ -64,27 +74,24 @@ struct CalculatorView: View {
     #endif
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Top bar with theme and premium buttons
-                topBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, geometry.safeAreaInsets.top + 12)
+        VStack(spacing: 0) {
+            // Top bar with theme and premium buttons
+            topBar
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
 
-                Spacer()
+            Spacer()
 
-                // Display with liquid glass effect
-                displayView
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
+            // Display with liquid glass effect
+            displayView
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
 
-                // Button grid
-                buttonGrid
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, max(geometry.safeAreaInsets.bottom, 20) + 20)
-            }
+            // Button grid
+            buttonGrid
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
         }
-        .ignoresSafeArea(.container, edges: .top)
     }
 
     private var topBar: some View {
