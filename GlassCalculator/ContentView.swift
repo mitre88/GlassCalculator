@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject var storeManager: StoreManager
     @Environment(\.colorScheme) var colorScheme
     @State private var showPremiumSheet = false
+    @AppStorage("userPreferredColorScheme") private var userPreferredColorScheme: Int = 0 // 0 = system, 1 = light, 2 = dark
 
     var body: some View {
         ZStack {
@@ -20,12 +21,13 @@ struct ContentView: View {
                 .ignoresSafeArea()
 
             // Calculator siempre visible
-            CalculatorView(showPremiumSheet: $showPremiumSheet)
+            CalculatorView(showPremiumSheet: $showPremiumSheet, userPreferredColorScheme: $userPreferredColorScheme)
         }
         .sheet(isPresented: $showPremiumSheet) {
             PremiumPurchaseSheet()
                 .environmentObject(storeManager)
         }
+        .preferredColorScheme(userPreferredColorScheme == 0 ? nil : (userPreferredColorScheme == 1 ? .light : .dark))
     }
 
     private var backgroundGradient: some View {
@@ -45,6 +47,7 @@ struct CalculatorView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var buttonScale: [String: CGFloat] = [:]
     @Binding var showPremiumSheet: Bool
+    @Binding var userPreferredColorScheme: Int
 
     private let buttonLayout: [[CalculatorButton]] = [
         [.clear, .negate, .percent, .divide],
@@ -61,35 +64,40 @@ struct CalculatorView: View {
     #endif
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Top bar with premium button
-            topBar
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Top bar with theme and premium buttons
+                topBar
+                    .padding(.horizontal, 20)
+                    .padding(.top, geometry.safeAreaInsets.top + 12)
 
-            Spacer()
+                Spacer()
 
-            // Display with liquid glass effect
-            displayView
-                .padding(.horizontal, 24)
-                .padding(.bottom, 32)
+                // Display with liquid glass effect
+                displayView
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
 
-            // Button grid
-            buttonGrid
-                .padding(.horizontal, 20)
-                .padding(.bottom, 40)
+                // Button grid
+                buttonGrid
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, max(geometry.safeAreaInsets.bottom, 20) + 20)
+            }
         }
-        .statusBar(hidden: false)
+        .ignoresSafeArea(.container, edges: .top)
     }
 
     private var topBar: some View {
-        HStack {
+        HStack(spacing: 12) {
             // Development mode indicator
             #if DEBUG
             developmentBanner
             #endif
 
             Spacer()
+
+            // Theme toggle button
+            themeToggleButton
 
             // Premium button (solo mostrar si no está desbloqueado)
             if !storeManager.isPremiumUnlocked {
@@ -130,6 +138,53 @@ struct CalculatorView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+
+    private var themeToggleButton: some View {
+        Button {
+            // Ciclar entre: system (0) -> light (1) -> dark (2) -> system (0)
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                userPreferredColorScheme = (userPreferredColorScheme + 1) % 3
+            }
+
+            // Haptic feedback
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+        } label: {
+            Image(systemName: themeIconName)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1A1F3A"))
+                .frame(width: 36, height: 36)
+                .background {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            Circle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(colorScheme == .dark ? 0.2 : 0.5),
+                                            Color.white.opacity(colorScheme == .dark ? 0.05 : 0.2)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        }
+                        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 6, x: 0, y: 3)
+                }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var themeIconName: String {
+        switch userPreferredColorScheme {
+        case 0: return "circle.lefthalf.filled" // System
+        case 1: return "sun.max.fill" // Light
+        case 2: return "moon.fill" // Dark
+        default: return "circle.lefthalf.filled"
         }
     }
 
